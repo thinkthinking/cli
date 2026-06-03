@@ -4,12 +4,23 @@ on:
   push:
     tags:
       - "v*"
+  # 手动触发：用于首次发布 npm（tag 已存在、push 不会再触发时），
+  # 在 GitHub Actions 页面选 release workflow → Run workflow，填版本号。
+  # 手动触发只发 npm（GitHub Release 此时已存在），跳过 GoReleaser。
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "要发布到 npm 的版本号（不含 v 前缀，如 0.1.0）"
+        required: true
 
 permissions:
   contents: write
 
 jobs:
-  release:
+  # 第一步：GoReleaser 构建 5 平台二进制并创建 GitHub Release。
+  # 仅在 tag push 时运行；手动触发（dispatch）时跳过。
+  goreleaser:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -31,3 +42,45 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # 第二步：发布 npm 分发壳。
+  # - tag push：等 goreleaser 成功后再发（postinstall 要从 Release 下载二进制）。
+  # - 手动触发：直接发（Release 已存在）。
+  npm-publish:
+    needs: goreleaser
+    # 手动触发时 goreleaser 被跳过，用 always() + 条件让本 job 仍能运行；
+    # tag push 时要求 goreleaser 成功。
+    if: |
+      always() &&
+      (github.event_name == 'workflow_dispatch' || needs.goreleaser.result == 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Resolve version
+        # tag push 用 GITHUB_REF_NAME（去 v 前缀）；手动触发用输入参数。
+        id: ver
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${GITHUB_REF_NAME#v}"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "publishing @thinkthinking/cli@$VERSION"
+
+      - name: Sync package version
+        working-directory: npm/package
+        run: npm version "${{ steps.ver.outputs.version }}" --no-git-tag-version --allow-same-version
+
+      - name: Publish to npm
+        working-directory: npm/package
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
