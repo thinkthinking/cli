@@ -43,7 +43,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # 第二步：发布 npm 分发壳。
+  # 第二步：发布 npm 分发壳，用 OIDC Trusted Publishing（无需任何 token）。
   # - tag push：等 goreleaser 成功后再发（postinstall 要从 Release 下载二进制）。
   # - 手动触发：直接发（Release 已存在）。
   npm-publish:
@@ -54,13 +54,18 @@ jobs:
       always() &&
       (github.event_name == 'workflow_dispatch' || needs.goreleaser.result == 'success')
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # OIDC 关键权限：允许本 job 生成 OIDC token 向 npm 认证。
+      id-token: write
     steps:
       - uses: actions/checkout@v6
 
       - name: Set up Node
         uses: actions/setup-node@v6
         with:
-          node-version: "22"
+          # Node 24 自带 npm v11（≥ 11.5.1），满足 OIDC Trusted Publishing 要求。
+          node-version: "24"
           registry-url: "https://registry.npmjs.org"
 
       - name: Resolve version
@@ -79,8 +84,10 @@ jobs:
         working-directory: npm/package
         run: npm version "${{ steps.ver.outputs.version }}" --no-git-tag-version --allow-same-version
 
-      - name: Publish to npm
+      - name: Publish to npm (OIDC)
         working-directory: npm/package
+        # 关键：本步骤刻意不设置任何 npm auth token 环境变量。
+        # 哪怕设成空字符串，npm 也会误用空 token 而非走 OIDC；
+        # 只有完全不设置时，npm 才会自动检测并使用 OIDC 认证。
+        # provenance 在 OIDC 下自动生成，无需 --provenance。
         run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
