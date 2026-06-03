@@ -13,6 +13,8 @@ const (
 	CodeWeChatAPI       = "WECHAT_API_ERROR"
 	CodeNetworkError    = "NETWORK_ERROR"
 	CodeInternalError   = "INTERNAL_ERROR"
+	// CodePlatformNotSupported 表示当前操作系统不支持该能力（如 --copy 仅 macOS）。
+	CodePlatformNotSupported = "PLATFORM_NOT_SUPPORTED"
 )
 
 // New 构造一个 AppError。

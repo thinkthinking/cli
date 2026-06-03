@@ -12,7 +12,9 @@ import (
 	"path/filepath"
 
 	"github.com/thinkthinking/cli/internal/config"
+	"github.com/thinkthinking/cli/internal/core/clipboard"
 	"github.com/thinkthinking/cli/internal/core/output"
+	"github.com/thinkthinking/cli/internal/core/preview"
 	"github.com/thinkthinking/cli/internal/core/wechat"
 	"github.com/thinkthinking/cli/internal/logging"
 )
@@ -48,6 +50,12 @@ type Container struct {
 
 	// DraftService 创建微信草稿（编排转换 + 上传 + 草稿 API）。
 	DraftService wechat.DraftService
+
+	// Clipboard 把转换后的 HTML 以 text/html flavor 写入系统剪贴板（--copy）。
+	Clipboard clipboard.Writer
+
+	// Preview 生成浏览器预览页并打开（--preview）。
+	Preview preview.Renderer
 }
 
 // New 装配一个 Container。
@@ -85,6 +93,10 @@ func New(opts Options) *Container {
 		AccessToken: c.Config.WeChat.AccessToken,
 	})
 	c.DraftService = wechat.NewDraftService(c.Converter, client)
+
+	// 装配投递层：剪贴板（按平台）与浏览器预览页。
+	c.Clipboard = clipboard.New()
+	c.Preview = preview.New()
 
 	return c
 }

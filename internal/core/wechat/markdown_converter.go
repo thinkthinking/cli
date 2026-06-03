@@ -241,7 +241,7 @@ func fixCJKBoldPunctuation(htmlStr string) string {
 
 // generateDigest 从 HTML 提取纯文本，截断到 maxBytes 个 UTF-8 字节。
 func generateDigest(htmlStr string, maxBytes int) string {
-	text := htmlToPlainText(htmlStr)
+	text := HTMLToPlainText(htmlStr)
 	text = strings.TrimSpace(regexp.MustCompile(`\s+`).ReplaceAllString(text, " "))
 
 	if len(text) <= maxBytes {
@@ -261,8 +261,9 @@ func generateDigest(htmlStr string, maxBytes int) string {
 	return strings.TrimRight(text[:cut], " ") + ellipsis
 }
 
-// htmlToPlainText 提取 HTML 的纯文本（goquery 的 .Text()）。
-func htmlToPlainText(htmlStr string) string {
+// HTMLToPlainText 提取 HTML 的纯文本（goquery 的 .Text()）。
+// 导出供投递层（如 --copy 生成剪贴板 text/plain flavor）复用，避免重写剥离逻辑。
+func HTMLToPlainText(htmlStr string) string {
 	doc, err := newFragmentDoc(htmlStr)
 	if err != nil {
 		return ""

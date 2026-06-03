@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{.Title}} - thinkthinking 预览</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: #f5f5f5;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    color: #333;
+  }
+  .toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px;
+    background: #ffffff;
+    border-bottom: 1px solid #e5e5e5;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  }
+  .toolbar .title { font-size: 14px; color: #888; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .toolbar .hint  { font-size: 12px; color: #aaa; }
+  .copy-btn {
+    appearance: none;
+    border: none;
+    border-radius: 6px;
+    background: #07c160; /* 微信绿 */
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 8px 18px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .copy-btn:hover { background: #06ad56; }
+  .copy-btn:active { background: #059c4d; }
+  .stage { padding: 24px 12px 64px; }
+  /* 模拟公众号正文容器宽度（约 677px）+ 白底卡片。 */
+  #preview {
+    max-width: 677px;
+    margin: 0 auto;
+    background: #ffffff;
+    padding: 20px;
+    border-radius: 4px;
+    box-shadow: 0 1px 8px rgba(0,0,0,0.06);
+  }
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 40px;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.8);
+    color: #fff;
+    font-size: 14px;
+    padding: 10px 24px;
+    border-radius: 8px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <button class="copy-btn" id="copyBtn" type="button">📋 复制到公众号</button>
+  <span class="title">{{.Title}}</span>
+  <span class="hint">复制后到公众号编辑器 Cmd/Ctrl+V 粘贴，即渲染排版</span>
+</div>
+<div class="stage">
+  <div id="preview">{{.Body}}</div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+(function () {
+  var btn = document.getElementById('copyBtn');
+  var toastEl = document.getElementById('toast');
+  var preview = document.getElementById('preview');
+
+  function toast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    setTimeout(function () { toastEl.classList.remove('show'); }, 1800);
+  }
+
+  // 兜底：选中 #preview 用 execCommand('copy')。富文本被选区携带，
+  // 多数浏览器会同时写入 text/html flavor。
+  function fallbackCopy() {
+    try {
+      var range = document.createRange();
+      range.selectNodeContents(preview);
+      var sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      var ok = document.execCommand('copy');
+      sel.removeAllRanges();
+      return ok;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  btn.addEventListener('click', function () {
+    var html = preview.innerHTML;
+    var plain = preview.innerText;
+    // 首选 ClipboardItem：显式写 text/html + text/plain 两种 flavor，
+    // 这是 doocs/md 让微信渲染粘贴的同款机制。
+    if (window.isSecureContext && navigator.clipboard && navigator.clipboard.write && typeof ClipboardItem !== 'undefined') {
+      navigator.clipboard.write([
+        new ClipboardItem({
+          'text/html': new Blob([html], { type: 'text/html' }),
+          'text/plain': new Blob([plain], { type: 'text/plain' })
+        })
+      ]).then(function () {
+        toast('✅ 已复制，去公众号粘贴吧');
+      }).catch(function () {
+        toast(fallbackCopy() ? '✅ 已复制（兼容模式）' : '❌ 复制失败，请手动全选复制');
+      });
+      return;
+    }
+    toast(fallbackCopy() ? '✅ 已复制（兼容模式）' : '❌ 复制失败，请手动全选复制');
+  });
+})();
+</script>
+</body>
+</html>
