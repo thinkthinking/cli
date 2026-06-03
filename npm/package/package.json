@@ -1,21 +1,24 @@
 {
   "name": "@thinkthinking/cli",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "面向 Agent 的个人 CLI 工具箱：Markdown 转微信公众号 HTML，并上传草稿。Go binary 通过 npm 分发。",
   "bin": {
     "thinkthinking": "bin/thinkthinking.js"
   },
-  "scripts": {
-    "postinstall": "node install.js"
-  },
   "files": [
     "bin/thinkthinking.js",
-    "install.js",
     "package.json",
     "README.md"
   ],
   "engines": {
     "node": ">=16"
+  },
+  "optionalDependencies": {
+    "@thinkthinking/cli-darwin-x64": "0.1.2",
+    "@thinkthinking/cli-darwin-arm64": "0.1.2",
+    "@thinkthinking/cli-linux-x64": "0.1.2",
+    "@thinkthinking/cli-linux-arm64": "0.1.2",
+    "@thinkthinking/cli-win32-x64": "0.1.2"
   },
   "keywords": [
     "wechat",

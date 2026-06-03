@@ -16,7 +16,7 @@
 npm install -g @thinkthinking/cli
 ```
 
-npm 包只是 Go 二进制的分发壳：`postinstall` 会根据你的平台/架构从 GitHub Releases 下载对应二进制，运行时**不依赖 Node**。
+npm 包是 Go 二进制的分发壳：通过 `optionalDependencies` 把各平台二进制拆成独立子包，npm 安装时**自动只下载匹配你系统的那一个**，装完即用——无 postinstall、无运行时下载，运行时**不依赖 Node**。
 
 ### 一键脚本
 
@@ -84,6 +84,30 @@ thinkthinking wechat convert --input article.md --theme midnight
 - `--no-footnotes` 关闭外链转脚注
 - `--no-containers` 关闭 `:::callout` / `:::timeline` / `:::dialogue` / `:::quote` / `:::highlight` / `:::summary` 容器块
 
+### 如何把内容正确放进公众号编辑器
+
+> ⚠️ **不要把 `convert` 打印的 HTML 文本直接复制粘贴进公众号**——会显示成 HTML 源码，而非排版。
+
+原因：微信编辑器只有在系统剪贴板携带 **`text/html` 富文本类型**时才会渲染粘贴内容。终端里 `convert | pbcopy` 或从 `.html` 文件复制，剪贴板只有纯文本（`text/plain`），微信便把标签当字面量插入。转换出的 HTML 本身是正确的、微信兼容的——问题只在「怎么投递」。三种正确方式：
+
+| 方式 | 命令 | 适用场景 |
+|------|------|----------|
+| **剪贴板**（仅 macOS） | `convert --copy` | 终端最快：写入富文本剪贴板，到公众号 `Cmd+V` 直接渲染 |
+| **浏览器预览页**（全平台） | `convert --preview` | 最稳：打开预览页肉眼校对排版，点「复制到公众号」按钮再粘贴 |
+| **草稿 API**（推荐给 Agent） | `wechat draft create` | 全自动：直接把正文写进公众号草稿箱，无需剪贴板，见下节 |
+
+```bash
+# macOS：转换并写入剪贴板，然后去公众号 Cmd+V
+thinkthinking wechat convert --input article.md --copy
+
+# 任意平台：生成预览页并打开浏览器，页面内一键复制
+thinkthinking wechat convert --input article.md --preview
+```
+
+- `--copy` 成功后 JSON 含 `"copied": true`；非 macOS 返回 `PLATFORM_NOT_SUPPORTED`，请改用 `--preview` 或 `--output`。
+- `--preview` 成功后 JSON 含 `preview_path`（预览文件路径）与 `opened`（是否成功唤起浏览器；为 `false` 时按提示手动打开）。
+- `--copy` / `--preview` / `--output` 可叠加使用。
+
 ### wechat draft create
 
 ```bash
@@ -125,7 +149,7 @@ thinkthinking wechat draft create --markdown-file article.md --title "标题" \
 }
 ```
 
-错误码：`INVALID_INPUT` `CONFIG_ERROR` `FILE_NOT_FOUND` `MARKDOWN_CONVERT_ERROR` `WECHAT_AUTH_ERROR` `WECHAT_API_ERROR` `NETWORK_ERROR` `INTERNAL_ERROR`。
+错误码：`INVALID_INPUT` `CONFIG_ERROR` `FILE_NOT_FOUND` `MARKDOWN_CONVERT_ERROR` `WECHAT_AUTH_ERROR` `WECHAT_API_ERROR` `NETWORK_ERROR` `PLATFORM_NOT_SUPPORTED` `INTERNAL_ERROR`。
 
 全局 flags：`--config` `--pretty` `--quiet` `--no-color` `--trace-id` `--verbose`。
 
@@ -175,17 +199,13 @@ output:
 
 ## npm 分发原理
 
-`@thinkthinking/cli` 不用 Node 实现 CLI，只作为 Go 二进制的分发壳：
+`@thinkthinking/cli` 不用 Node 实现 CLI，只作为 Go 二进制的分发壳。采用业界标准的 **`optionalDependencies` + 按平台拆分子包** 模式（esbuild / @openai/codex / @anthropic-ai/claude-code 同款）：
 
-1. `npm install -g @thinkthinking/cli` 触发 `postinstall` → `install.js`
-2. `install.js` 按 `process.platform` / `process.arch` 拼出 GitHub Releases 归档名并下载
-3. 解压到 `bin/native/`，给 macOS/Linux 二进制加可执行权限
-4. `bin/thinkthinking.js` 作为 wrapper，用 `spawnSync` 把参数原样转发给 native 二进制，保留 stdout/stderr 与 exit code
+- 主包 `@thinkthinking/cli`（壳）的 `optionalDependencies` 声明 5 个平台子包：`@thinkthinking/cli-{darwin-arm64,darwin-x64,linux-x64,linux-arm64,win32-x64}`。
+- 每个子包用 npm 的 `os` / `cpu` 字段限定平台，二进制直接打在子包里随 npm registry 分发。`npm install` 时 npm **自动只安装匹配当前系统的那一个子包**，无需 postinstall、无运行时下载。
+- `bin/thinkthinking.js` 作为 wrapper，用 `require.resolve('@thinkthinking/cli-<platform>-<arch>/thinkthinking')` 定位子包二进制，再用 `spawnSync` 把参数原样转发，保留 stdout/stderr 与 exit code。
 
-环境变量：
-
-- `THINKTHINKING_SKIP_DOWNLOAD=1` 跳过下载（离线 / 自行构建）
-- `THINKTHINKING_VERSION=x.y.z` 指定下载版本
+发布流程：`npm/scripts/build-packages.mjs` 从 GitHub Release 下载各平台二进制、组装出 5 个子包并同步主包版本号；CI（`.github/workflows/release.yml`）先发 5 个子包、再发主包（OIDC Trusted Publishing，无需 token）。
 
 ---
 

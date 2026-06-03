@@ -43,8 +43,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # 第二步：发布 npm 分发壳，用 OIDC Trusted Publishing（无需任何 token）。
-  # - tag push：等 goreleaser 成功后再发（postinstall 要从 Release 下载二进制）。
+  # 第二步：构建并发布 npm 包，用 OIDC Trusted Publishing（无需任何 token）。
+  # 结构：主包（壳）+ 5 个平台子包（含二进制）。npm 装主包时按 optionalDependencies
+  # 自动只装匹配当前系统的子包，装完即用、无 postinstall、无运行时下载。
+  # - tag push：等 goreleaser 成功后再发（子包要从 Release 下载二进制）。
   # - 手动触发：直接发（Release 已存在）。
   npm-publish:
     needs: goreleaser
@@ -80,14 +82,31 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "publishing @thinkthinking/cli@$VERSION"
 
-      - name: Sync package version
-        working-directory: npm/package
-        run: npm version "${{ steps.ver.outputs.version }}" --no-git-tag-version --allow-same-version
+      - name: Build platform subpackages + sync main package
+        # 从 Release 下载 5 平台二进制，生成 npm/packages/cli-* 子包，并把主包
+        # version 与 optionalDependencies 同步成本次版本号。
+        run: node npm/scripts/build-packages.mjs
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+          REPO: thinkthinking/cli
+          # 仅用于下载 Release 资产防限流。
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Publish to npm (OIDC)
-        working-directory: npm/package
+      - name: Publish subpackages then main (OIDC)
         # 关键：本步骤刻意不设置任何 npm auth token 环境变量。
         # 哪怕设成空字符串，npm 也会误用空 token 而非走 OIDC；
         # 只有完全不设置时，npm 才会自动检测并使用 OIDC 认证。
         # provenance 在 OIDC 下自动生成，无需 --provenance。
-        run: npm publish --access public
+        #
+        # 顺序是硬要求：必须先发完 5 个子包，再发主包。
+        # 主包 optionalDependencies 是精确版本，若子包未发，用户安装主包时
+        # optional 解析失败会静默跳过 → wrapper 找不到二进制。set -e 保证任一
+        # 子包失败立即中止，绝不会执行到发主包那行。
+        run: |
+          set -e
+          for d in npm/packages/cli-*; do
+            echo "==> publishing $d"
+            ( cd "$d" && npm publish --access public )
+          done
+          echo "==> publishing main package npm/package"
+          ( cd npm/package && npm publish --access public )

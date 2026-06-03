@@ -35,7 +35,11 @@ go.work.sum
 /bin/
 /dist/
 
-# npm wrapper 下载的 native 二进制
+# 构建脚本生成的平台子包（CI 临时产物，不入库）
+/npm/packages/
+# 本地缓存的 Release 归档（本机验证用，不入库）
+/npm/.cache/
+# 旧版 postinstall 下载的 native 二进制残留
 /npm/package/bin/native/
 /npm/package/node_modules/
 

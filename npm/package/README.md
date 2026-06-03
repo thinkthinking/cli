@@ -8,7 +8,7 @@
 npm install -g @thinkthinking/cli
 ```
 
-本 npm 包只是 Go 二进制的分发壳：`postinstall` 会根据你的平台/架构从 [GitHub Releases](https://github.com/thinkthinking/cli/releases) 下载对应二进制，运行时**不依赖 Node**。
+本 npm 包是 Go 二进制的分发壳：通过 `optionalDependencies` 把各平台二进制拆成独立子包（`@thinkthinking/cli-darwin-arm64` 等），npm 安装时**自动只下载匹配你系统的那一个**，装完即用——无 postinstall、无运行时下载，运行时**不依赖 Node**。
 
 ## 快速开始
 
@@ -20,10 +20,7 @@ thinkthinking wechat convert --input article.md
 thinkthinking wechat draft create --markdown-file article.md --title "标题"
 ```
 
-## 环境变量
-
-- `THINKTHINKING_SKIP_DOWNLOAD=1` 跳过二进制下载（离线 / 自行构建）
-- `THINKTHINKING_VERSION=x.y.z` 指定下载版本
+> 若在极少数环境下安装时带了 `--no-optional` / `--omit=optional`，平台子包会被跳过、命令会报「找不到平台二进制」。此时去掉该参数重装即可，或用 [GitHub Releases](https://github.com/thinkthinking/cli/releases) 的一键脚本安装。
 
 完整文档见 [GitHub 仓库](https://github.com/thinkthinking/cli)。
 
