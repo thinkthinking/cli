@@ -1,0 +1,32 @@
+{
+  "name": "@thinkthinking/cli",
+  "version": "0.1.0",
+  "description": "面向 Agent 的个人 CLI 工具箱：Markdown 转微信公众号 HTML，并上传草稿。Go binary 通过 npm 分发。",
+  "bin": {
+    "thinkthinking": "bin/thinkthinking.js"
+  },
+  "scripts": {
+    "postinstall": "node install.js"
+  },
+  "files": [
+    "bin/thinkthinking.js",
+    "install.js",
+    "package.json",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=16"
+  },
+  "keywords": [
+    "wechat",
+    "markdown",
+    "cli",
+    "agent",
+    "thinkthinking"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/thinkthinking/cli.git"
+  }
+}

@@ -30,3 +30,14 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# Build output
+/bin/
+/dist/
+
+# npm wrapper 下载的 native 二进制
+/npm/package/bin/native/
+/npm/package/node_modules/
+
+# 本地设计/prompt 草稿，不对外公开
+/.context/

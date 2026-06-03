@@ -1,0 +1,64 @@
+# GoReleaser 配置：构建跨平台二进制并发布到 GitHub Releases。
+# 文档：https://goreleaser.com
+version: 2
+
+project_name: thinkthinking
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: thinkthinking
+    main: ./cmd/thinkthinking
+    binary: thinkthinking
+    env:
+      - CGO_ENABLED=0
+    # 注入版本信息到 internal/version。
+    ldflags:
+      - -s -w
+      - -X github.com/thinkthinking/cli/internal/version.Version={{.Version}}
+      - -X github.com/thinkthinking/cli/internal/version.Commit={{.ShortCommit}}
+      - -X github.com/thinkthinking/cli/internal/version.Date={{.Date}}
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    # Windows 不构建 arm64（需求是 windows/amd64）。
+    ignore:
+      - goos: windows
+        goarch: arm64
+
+archives:
+  - id: default
+    # 归档名包含 os/arch，npm install.js 据此下载对应包。
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    formats: [tar.gz]
+
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+
+release:
+  github:
+    owner: thinkthinking
+    name: cli
+  draft: false
+  prerelease: auto
