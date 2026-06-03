@@ -12,23 +12,13 @@ import (
 	"github.com/thinkthinking/cli/internal/core/wechat"
 )
 
-// newWeChatDraftCmd 是 `thinkthinking wechat draft` 父命令。
-func newWeChatDraftCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "draft",
-		Short: "微信公众号草稿：create",
-		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			cmd.SetOut(cmd.ErrOrStderr())
-			return cmd.Help()
-		},
-	}
-	cmd.AddCommand(newWeChatDraftCreateCmd())
-	return cmd
-}
-
-// newWeChatDraftCreateCmd 实现 `thinkthinking wechat draft create`。
-func newWeChatDraftCreateCmd() *cobra.Command {
+// newWeChatPostCmd 实现 `thinkthinking wechat post`：把 Markdown/HTML 发布为
+// 微信公众号草稿（自动转换、上传正文本地图片、上传封面）。
+//
+// 设计取舍：post 是面向「发一篇文章」的高频命令，刻意收敛参数——
+// --title / --author / --cover 三者必填，--markdown-file 与 --html-file 二选一，
+// 由 cobra 的内置校验给出清晰错误（统一包装成 INVALID_INPUT JSON）。
+func newWeChatPostCmd() *cobra.Command {
 	var (
 		title        string
 		markdownFile string
@@ -37,24 +27,18 @@ func newWeChatDraftCreateCmd() *cobra.Command {
 		author       string
 		digest       string
 		cover        string
-		coverMediaID string
 		noUpload     bool
 	)
 
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "创建微信公众号草稿（支持 Markdown 自动转换与本地图片上传）",
-		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			// title 必填。
-			if strings.TrimSpace(title) == "" {
-				return output.New(output.CodeInvalidInput, "--title is required")
-			}
-			// markdown-file 与 html-file 二选一。
-			if (markdownFile == "") == (htmlFile == "") {
-				return output.New(output.CodeInvalidInput, "exactly one of --markdown-file or --html-file is required")
-			}
+		Use:   "post",
+		Short: "把 Markdown/HTML 发布为微信公众号草稿（自动转换 + 上传图片与封面）",
+		Long: `把一篇文章发布为微信公众号草稿。
 
+自动完成：Markdown → 微信兼容 HTML → 上传正文本地图片并回填 URL → 上传封面 → 写入草稿箱。
+--title / --author / --cover 必填；正文来源 --markdown-file 与 --html-file 二选一。`,
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
 			// 凭证预检：缺失则返回结构化 WECHAT_AUTH_ERROR（不 panic）。
 			if aerr := checkWeChatCredentials(); aerr != nil {
 				return aerr
@@ -62,10 +46,9 @@ func newWeChatDraftCreateCmd() *cobra.Command {
 
 			input := wechat.CreateDraftInput{
 				Title:        title,
-				Author:       firstNonEmpty(author, container.Config.WeChat.DefaultAuthor),
+				Author:       author,
 				Digest:       digest,
 				CoverImage:   cover,
-				CoverMediaID: coverMediaID,
 				UploadImages: !noUpload,
 			}
 
@@ -110,14 +93,21 @@ func newWeChatDraftCreateCmd() *cobra.Command {
 
 	f := cmd.Flags()
 	f.StringVar(&title, "title", "", "文章标题（必填）")
+	f.StringVar(&author, "author", "", "作者（必填）")
+	f.StringVar(&cover, "cover", "", "本地封面图路径，上传为 thumb_media_id（必填）")
 	f.StringVar(&markdownFile, "markdown-file", "", "Markdown 文件路径（与 --html-file 二选一）")
 	f.StringVar(&htmlFile, "html-file", "", "HTML 文件路径（与 --markdown-file 二选一）")
-	f.StringVarP(&theme, "theme", "t", "", "主题名（仅 markdown 路径，默认读配置）")
-	f.StringVar(&author, "author", "", "作者（默认读配置 wechat.default_author）")
+	f.StringVarP(&theme, "theme", "t", "", "主题名（仅 markdown 路径，默认读配置 wechat.default_theme）")
 	f.StringVar(&digest, "digest", "", "摘要（默认用转换生成的摘要）")
-	f.StringVar(&cover, "cover", "", "本地封面图路径（上传为 thumb_media_id）")
-	f.StringVar(&coverMediaID, "cover-media-id", "", "已有的封面 media_id（与 --cover 二选一）")
 	f.BoolVar(&noUpload, "no-upload-images", false, "禁用正文本地图片自动上传")
+
+	// 必填与互斥约束交给 cobra：校验失败返回的 error 由 Execute() 统一包装成
+	// INVALID_INPUT 的 JSON envelope，保持 Agent 契约。
+	_ = cmd.MarkFlagRequired("title")
+	_ = cmd.MarkFlagRequired("author")
+	_ = cmd.MarkFlagRequired("cover")
+	cmd.MarkFlagsOneRequired("markdown-file", "html-file")
+	cmd.MarkFlagsMutuallyExclusive("markdown-file", "html-file")
 	return cmd
 }
 
@@ -172,7 +162,7 @@ func mapWeChatError(err error) *output.AppError {
 	}
 }
 
-// firstNonEmpty 返回第一个非空字符串。
+// firstNonEmpty 返回第一个非空（去空白后非空）字符串。
 func firstNonEmpty(values ...string) string {
 	for _, v := range values {
 		if strings.TrimSpace(v) != "" {

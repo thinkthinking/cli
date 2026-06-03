@@ -1,7 +1,7 @@
 {
   "name": "@thinkthinking/cli",
-  "version": "0.1.2",
-  "description": "面向 Agent 的个人 CLI 工具箱：Markdown 转微信公众号 HTML，并上传草稿。Go binary 通过 npm 分发。",
+  "version": "0.1.3",
+  "description": "面向 LLM Agent、自动化脚本与开发者的本地 CLI 工具箱：把 Markdown 一键转成微信公众号兼容 HTML 并发布草稿，所有命令输出统一 JSON envelope。Go 单文件二进制，npm 装完即用、运行时不依赖 Node。",
   "bin": {
     "thinkthinking": "bin/thinkthinking.js"
   },
@@ -14,19 +14,35 @@
     "node": ">=16"
   },
   "optionalDependencies": {
-    "@thinkthinking/cli-darwin-x64": "0.1.2",
-    "@thinkthinking/cli-darwin-arm64": "0.1.2",
-    "@thinkthinking/cli-linux-x64": "0.1.2",
-    "@thinkthinking/cli-linux-arm64": "0.1.2",
-    "@thinkthinking/cli-win32-x64": "0.1.2"
+    "@thinkthinking/cli-darwin-x64": "0.1.3",
+    "@thinkthinking/cli-darwin-arm64": "0.1.3",
+    "@thinkthinking/cli-linux-x64": "0.1.3",
+    "@thinkthinking/cli-linux-arm64": "0.1.3",
+    "@thinkthinking/cli-win32-x64": "0.1.3"
   },
   "keywords": [
     "wechat",
+    "weixin",
+    "wechat-mp",
+    "gongzhonghao",
+    "微信公众号",
     "markdown",
+    "markdown-to-html",
+    "markdown-to-wechat",
     "cli",
+    "golang",
     "agent",
+    "llm-agent",
+    "ai-agent",
+    "mcp",
+    "content-publishing",
+    "json-output",
     "thinkthinking"
   ],
+  "homepage": "https://github.com/thinkthinking/cli#readme",
+  "bugs": {
+    "url": "https://github.com/thinkthinking/cli/issues"
+  },
   "license": "MIT",
   "repository": {
     "type": "git",

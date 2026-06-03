@@ -10,16 +10,18 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/thinkthinking/cli/internal/app"
 	"github.com/thinkthinking/cli/internal/core/output"
+	"github.com/thinkthinking/cli/internal/version"
 )
 
 // 全局 flag 的值容器。cobra 在 parse 后填充，PersistentPreRun 据此装配 container。
 type globalFlags struct {
-	configPath string
-	pretty     bool
-	quiet      bool
-	noColor    bool
-	traceID    string
-	verbose    bool
+	configPath  string
+	pretty      bool
+	quiet       bool
+	noColor     bool
+	traceID     string
+	verbose     bool
+	showVersion bool
 }
 
 // container 是装配好的服务集合，供各子命令通过 currentContainer() 获取。
@@ -42,10 +44,16 @@ func NewRootCmd() *cobra.Command {
 		// 避免非 JSON 文本污染 stdout。
 		SilenceErrors: true,
 		SilenceUsage:  true,
-		// 根命令无子命令时打印帮助。关键：强制把帮助写到 stderr，保持 stdout
-		// 纯净（Agent 契约：stdout 只允许 JSON envelope）。cobra 默认 Help 走 stdout，
-		// 这里显式重定向。
+		// 根命令：`-v`/`--version` 输出版本信息（JSON envelope，保持 Agent 契约）；
+		// 否则打印帮助。关键：把帮助写到 stderr，保持 stdout 纯净（stdout 只允许
+		// JSON envelope）。cobra 默认 Help 走 stdout，这里显式重定向。
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if gFlags.showVersion {
+				if err := container.Output.Success(version.Get()); err != nil {
+					return output.Wrap(err, output.CodeInternalError)
+				}
+				return nil
+			}
 			cmd.SetOut(cmd.ErrOrStderr())
 			return cmd.Help()
 		},
@@ -68,10 +76,13 @@ func NewRootCmd() *cobra.Command {
 	pf.BoolVar(&gFlags.quiet, "quiet", false, "抑制非必要的 stderr 输出")
 	pf.BoolVar(&gFlags.noColor, "no-color", false, "禁用彩色输出（预留，第一期默认无颜色）")
 	pf.StringVar(&gFlags.traceID, "trace-id", "", "调用方追踪 ID，透传到日志便于排查")
-	pf.BoolVarP(&gFlags.verbose, "verbose", "v", false, "输出 debug 级别日志到 stderr")
+	pf.BoolVar(&gFlags.verbose, "verbose", false, "输出 debug 级别日志到 stderr")
+
+	// `-v` / `--version` 输出版本号。只在根命令上注册（非持久化），
+	// 由根命令的 RunE 处理。
+	root.Flags().BoolVarP(&gFlags.showVersion, "version", "v", false, "输出版本信息（JSON）")
 
 	// 挂载子命令。
-	root.AddCommand(newVersionCmd())
 	root.AddCommand(newInitCmd())
 	root.AddCommand(newConfigCmd())
 	root.AddCommand(newWeChatCmd())

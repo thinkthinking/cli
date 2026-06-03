@@ -1,6 +1,6 @@
 # @thinkthinking/cli
 
-面向 **LLM Agent、自动化脚本和开发者** 的本地 CLI 工具箱。第一期聚焦微信公众号能力：将 Markdown 转换为微信公众号兼容 HTML，并上传草稿。所有命令默认输出统一 JSON envelope。
+面向 **LLM Agent、自动化脚本与开发者** 的本地 CLI 工具箱。第一期聚焦微信公众号：把 **Markdown 一键转成微信公众号兼容 HTML** 并直接**发布草稿**。所有命令输出统一 JSON envelope，便于 Claude Code、Codex 等 Agent 或脚本稳定解析。
 
 ## 安装
 
@@ -16,8 +16,14 @@ npm install -g @thinkthinking/cli
 thinkthinking init
 thinkthinking config set wechat.app_id     wx_your_appid
 thinkthinking config set wechat.app_secret your_appsecret
+
+# Markdown → 微信公众号 HTML
 thinkthinking wechat convert --input article.md
-thinkthinking wechat draft create --markdown-file article.md --title "标题"
+
+# 一步发布为草稿（自动转换 + 上传正文图片与封面）
+thinkthinking wechat post \
+  --markdown-file article.md \
+  --title "标题" --author "你的名字" --cover cover.jpg
 ```
 
 > 若在极少数环境下安装时带了 `--no-optional` / `--omit=optional`，平台子包会被跳过、命令会报「找不到平台二进制」。此时去掉该参数重装即可，或用 [GitHub Releases](https://github.com/thinkthinking/cli/releases) 的一键脚本安装。

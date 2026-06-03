@@ -8,7 +8,7 @@ import (
 func newWeChatCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "wechat",
-		Short: "微信公众号能力：convert / draft",
+		Short: "微信公众号能力：convert / post",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SetOut(cmd.ErrOrStderr())
@@ -16,6 +16,6 @@ func newWeChatCmd() *cobra.Command {
 		},
 	}
 	cmd.AddCommand(newWeChatConvertCmd())
-	cmd.AddCommand(newWeChatDraftCmd())
+	cmd.AddCommand(newWeChatPostCmd())
 	return cmd
 }
