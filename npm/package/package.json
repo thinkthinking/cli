@@ -1,6 +1,6 @@
 {
   "name": "@thinkthinking/cli",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "面向 LLM Agent、自动化脚本与开发者的本地 CLI 工具箱：把 Markdown 一键转成微信公众号兼容 HTML 并发布草稿，所有命令输出统一 JSON envelope。Go 单文件二进制，npm 装完即用、运行时不依赖 Node。",
   "bin": {
     "thinkthinking": "bin/thinkthinking.js"
@@ -14,11 +14,11 @@
     "node": ">=16"
   },
   "optionalDependencies": {
-    "@thinkthinking/cli-darwin-x64": "0.1.3",
-    "@thinkthinking/cli-darwin-arm64": "0.1.3",
-    "@thinkthinking/cli-linux-x64": "0.1.3",
-    "@thinkthinking/cli-linux-arm64": "0.1.3",
-    "@thinkthinking/cli-win32-x64": "0.1.3"
+    "@thinkthinking/cli-darwin-x64": "0.1.4",
+    "@thinkthinking/cli-darwin-arm64": "0.1.4",
+    "@thinkthinking/cli-linux-x64": "0.1.4",
+    "@thinkthinking/cli-linux-arm64": "0.1.4",
+    "@thinkthinking/cli-win32-x64": "0.1.4"
   },
   "keywords": [
     "wechat",

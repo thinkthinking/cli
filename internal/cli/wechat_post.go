@@ -12,36 +12,67 @@ import (
 	"github.com/thinkthinking/cli/internal/core/wechat"
 )
 
-// newWeChatPostCmd 实现 `thinkthinking wechat post`：把 Markdown/HTML 发布为
-// 微信公众号草稿（自动转换、上传正文本地图片、上传封面）。
+// markdownExts / htmlExts 是 post 命令按文件后缀自动判断正文类型的依据。
+var (
+	markdownExts = map[string]bool{".md": true, ".markdown": true, ".mdown": true, ".mkd": true}
+	htmlExts     = map[string]bool{".html": true, ".htm": true}
+)
+
+// newWeChatPostCmd 实现 `thinkthinking wechat post`：把一篇文章发布为微信公众号草稿
+// （自动转换、上传正文本地图片、上传封面）。
 //
-// 设计取舍：post 是面向「发一篇文章」的高频命令，刻意收敛参数——
-// --title / --author / --cover 三者必填，--markdown-file 与 --html-file 二选一，
-// 由 cobra 的内置校验给出清晰错误（统一包装成 INVALID_INPUT JSON）。
+// 设计取舍：post 是「发一篇文章」的高频命令，刻意收敛参数——
+//   - 正文文件作为位置参数，按后缀自动判断 Markdown / HTML（.md → 转换，.html → 直传），
+//     不再要求用户区分 --markdown-file / --html-file。
+//   - --title / --author / --cover 三者必填，由 cobra 内置校验给出清晰错误
+//     （统一包装成 INVALID_INPUT JSON）。
 func newWeChatPostCmd() *cobra.Command {
 	var (
-		title        string
-		markdownFile string
-		htmlFile     string
-		theme        string
-		author       string
-		digest       string
-		cover        string
-		noUpload     bool
+		title    string
+		theme    string
+		author   string
+		digest   string
+		cover    string
+		noUpload bool
 	)
 
 	cmd := &cobra.Command{
-		Use:   "post",
-		Short: "把 Markdown/HTML 发布为微信公众号草稿（自动转换 + 上传图片与封面）",
+		Use:   "post <file>",
+		Short: "把一篇文章发布为微信公众号草稿（按后缀自动转换 + 上传图片与封面）",
 		Long: `把一篇文章发布为微信公众号草稿。
 
-自动完成：Markdown → 微信兼容 HTML → 上传正文本地图片并回填 URL → 上传封面 → 写入草稿箱。
---title / --author / --cover 必填；正文来源 --markdown-file 与 --html-file 二选一。`,
-		Args: cobra.NoArgs,
+<file> 是正文文件，按后缀自动判断类型：
+  .md / .markdown  → 转换为微信兼容 HTML 后发布
+  .html / .htm     → 直接作为正文发布
+
+自动完成：（必要时转换）→ 上传正文本地图片并回填 URL → 上传封面 → 写入草稿箱。
+--title / --author / --cover 三者必填。
+
+示例：
+  thinkthinking wechat post article.md   --title "标题" --author "作者" --cover cover.jpg
+  thinkthinking wechat post article.html --title "标题" --author "作者" --cover cover.jpg`,
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			file := args[0]
+			ext := strings.ToLower(filepath.Ext(file))
+			isMarkdown := markdownExts[ext]
+			isHTML := htmlExts[ext]
+			if !isMarkdown && !isHTML {
+				return output.Newf(output.CodeInvalidInput,
+					"无法从后缀判断文件类型：%s（支持 .md/.markdown 或 .html/.htm）", file)
+			}
+
 			// 凭证预检：缺失则返回结构化 WECHAT_AUTH_ERROR（不 panic）。
 			if aerr := checkWeChatCredentials(); aerr != nil {
 				return aerr
+			}
+
+			data, rerr := os.ReadFile(file)
+			if rerr != nil {
+				if os.IsNotExist(rerr) {
+					return output.Newf(output.CodeFileNotFound, "file not found: %s", file)
+				}
+				return output.Wrap(rerr, output.CodeInvalidInput)
 			}
 
 			input := wechat.CreateDraftInput{
@@ -52,26 +83,12 @@ func newWeChatPostCmd() *cobra.Command {
 				UploadImages: !noUpload,
 			}
 
-			if markdownFile != "" {
-				data, rerr := os.ReadFile(markdownFile)
-				if rerr != nil {
-					if os.IsNotExist(rerr) {
-						return output.Newf(output.CodeFileNotFound, "markdown file not found: %s", markdownFile)
-					}
-					return output.Wrap(rerr, output.CodeInvalidInput)
-				}
+			if isMarkdown {
 				input.Markdown = string(data)
-				input.MarkdownDir = filepath.Dir(markdownFile)
+				input.MarkdownDir = filepath.Dir(file)
 				input.ThemeName = firstNonEmpty(theme, container.Config.WeChat.DefaultTheme)
 				input.ConvertOptions = wechat.DefaultConvertOptions()
 			} else {
-				data, rerr := os.ReadFile(htmlFile)
-				if rerr != nil {
-					if os.IsNotExist(rerr) {
-						return output.Newf(output.CodeFileNotFound, "html file not found: %s", htmlFile)
-					}
-					return output.Wrap(rerr, output.CodeInvalidInput)
-				}
 				input.HTML = string(data)
 			}
 
@@ -95,19 +112,15 @@ func newWeChatPostCmd() *cobra.Command {
 	f.StringVar(&title, "title", "", "文章标题（必填）")
 	f.StringVar(&author, "author", "", "作者（必填）")
 	f.StringVar(&cover, "cover", "", "本地封面图路径，上传为 thumb_media_id（必填）")
-	f.StringVar(&markdownFile, "markdown-file", "", "Markdown 文件路径（与 --html-file 二选一）")
-	f.StringVar(&htmlFile, "html-file", "", "HTML 文件路径（与 --markdown-file 二选一）")
-	f.StringVarP(&theme, "theme", "t", "", "主题名（仅 markdown 路径，默认读配置 wechat.default_theme）")
+	f.StringVarP(&theme, "theme", "t", "", "主题名（仅 .md 正文生效，默认读配置 wechat.default_theme）")
 	f.StringVar(&digest, "digest", "", "摘要（默认用转换生成的摘要）")
 	f.BoolVar(&noUpload, "no-upload-images", false, "禁用正文本地图片自动上传")
 
-	// 必填与互斥约束交给 cobra：校验失败返回的 error 由 Execute() 统一包装成
+	// 必填约束交给 cobra：校验失败返回的 error 由 Execute() 统一包装成
 	// INVALID_INPUT 的 JSON envelope，保持 Agent 契约。
 	_ = cmd.MarkFlagRequired("title")
 	_ = cmd.MarkFlagRequired("author")
 	_ = cmd.MarkFlagRequired("cover")
-	cmd.MarkFlagsOneRequired("markdown-file", "html-file")
-	cmd.MarkFlagsMutuallyExclusive("markdown-file", "html-file")
 	return cmd
 }
 

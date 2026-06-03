@@ -18,11 +18,10 @@ thinkthinking config set wechat.app_id     wx_your_appid
 thinkthinking config set wechat.app_secret your_appsecret
 
 # Markdown → 微信公众号 HTML
-thinkthinking wechat convert --input article.md
+thinkthinking wechat convert article.md
 
-# 一步发布为草稿（自动转换 + 上传正文图片与封面）
-thinkthinking wechat post \
-  --markdown-file article.md \
+# 一步发布为草稿（按后缀自动转换 + 上传正文图片与封面）
+thinkthinking wechat post article.md \
   --title "标题" --author "你的名字" --cover cover.jpg
 ```
 

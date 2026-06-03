@@ -29,11 +29,43 @@ func newWeChatConvertCmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "convert",
+		Use:   "convert [file]",
 		Short: "将 Markdown 转换为微信公众号兼容 HTML",
-		Args:  cobra.NoArgs,
+		Long: `将 Markdown 转换为微信公众号兼容 HTML。
+
+输入来源（三选一，优先级：位置参数 > --input > --stdin）：
+  thinkthinking wechat convert article.md       # 位置参数（推荐）
+  thinkthinking wechat convert --input a.md
+  thinkthinking wechat convert --stdin < a.md
+
+默认把 HTML 放进 JSON 的 data.html；指定 --output 则写文件、JSON 只返回路径。
+
+投递到公众号编辑器（直接复制 HTML 文本会显示成源码，需用下面三种方式之一）：
+  --copy     写入富文本剪贴板（仅 macOS），到公众号 Cmd+V 即渲染
+  --preview  生成预览页并打开浏览器，页面内一键复制
+  --output   写 .html 文件
+或改用 ` + "`wechat post`" + ` 全自动写入草稿箱，无需手动投递。`,
+		Example: `  # 转换并打印 HTML（在 data.html 字段）
+  thinkthinking wechat convert article.md --pretty
+
+  # 换主题
+  thinkthinking wechat convert article.md --theme midnight
+
+  # 转换并写入剪贴板（macOS）
+  thinkthinking wechat convert article.md --copy
+
+  # 转换并打开浏览器预览页
+  thinkthinking wechat convert article.md --preview
+
+  # 写到文件
+  thinkthinking wechat convert article.md --output dist/article.html`,
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// 读取 Markdown 来源：--stdin 或 --input 二选一。
+			// 位置参数（若有）覆盖 --input：thinkthinking wechat convert article.md
+			if len(args) == 1 {
+				input = args[0]
+			}
+			// 读取 Markdown 来源：位置参数/--input 或 --stdin。
 			markdown, srcLabel, aerr := readMarkdownSource(cmd, input, stdin)
 			if aerr != nil {
 				return aerr
@@ -125,7 +157,7 @@ func newWeChatConvertCmd() *cobra.Command {
 	}
 
 	f := cmd.Flags()
-	f.StringVarP(&input, "input", "i", "", "Markdown 输入文件路径")
+	f.StringVarP(&input, "input", "i", "", "Markdown 输入文件路径（等价于位置参数 [file]）")
 	f.StringVarP(&out, "output", "o", "", "输出 HTML 文件路径（指定后 JSON 不返回完整 html）")
 	f.BoolVar(&stdin, "stdin", false, "从 stdin 读取 Markdown")
 	f.StringVarP(&theme, "theme", "t", "", "主题名（默认读配置 wechat.default_theme）")
@@ -147,7 +179,7 @@ func readMarkdownSource(cmd *cobra.Command, input string, stdin bool) (string, s
 		return string(data), "<stdin>", nil
 	}
 	if input == "" {
-		return "", "", output.New(output.CodeInvalidInput, "either --input or --stdin is required")
+		return "", "", output.New(output.CodeInvalidInput, "missing Markdown input: pass a file as [file] or --input, or use --stdin")
 	}
 	data, err := os.ReadFile(input)
 	if err != nil {

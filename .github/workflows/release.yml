@@ -35,7 +35,9 @@ jobs:
           cache: true
 
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v6
+        # v7 起 action 运行时升级到 Node 24（v6 跑在 Node 20，已被 GitHub 标记弃用）。
+        # 输入 distribution/version/args 与 v6 兼容。
+        uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser
           version: "~> v2"

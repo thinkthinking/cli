@@ -58,11 +58,10 @@ thinkthinking config set wechat.app_id     wx_your_appid
 thinkthinking config set wechat.app_secret your_appsecret
 
 # 3. Markdown → 微信公众号 HTML
-thinkthinking wechat convert --input article.md
+thinkthinking wechat convert article.md
 
 # 4. 一步发布为草稿（自动转换 + 上传正文图片与封面）
-thinkthinking wechat post \
-  --markdown-file article.md \
+thinkthinking wechat post article.md \
   --title "文章标题" --author "你的名字" --cover cover.jpg
 ```
 
@@ -78,18 +77,22 @@ thinkthinking wechat post \
 | `thinkthinking config get <key>` | 读取配置项 |
 | `thinkthinking config set <key> <value>` | 设置配置项 |
 | `thinkthinking config list` | 输出完整配置（敏感字段脱敏） |
-| `thinkthinking wechat convert` | Markdown → 微信公众号 HTML |
-| `thinkthinking wechat post` | 发布微信公众号草稿 |
+| `thinkthinking wechat convert <file>` | Markdown → 微信公众号 HTML |
+| `thinkthinking wechat post <file>` | 发布微信公众号草稿 |
 
 全局 flags：`--config` `--pretty` `--quiet` `--no-color` `--trace-id` `--verbose`。
 
+> 提示：Agent 可对任意命令加 `-h` 查看完整用法与示例，例如 `thinkthinking wechat -h`、`thinkthinking wechat post -h`。
+
 ### wechat convert
 
+正文文件作为位置参数传入（也兼容 `--input` / `--stdin`）：
+
 ```bash
-thinkthinking wechat convert --input article.md
-thinkthinking wechat convert --input article.md --output dist/article.html
+thinkthinking wechat convert article.md
+thinkthinking wechat convert article.md --output dist/article.html
+thinkthinking wechat convert article.md --theme midnight
 thinkthinking wechat convert --stdin < article.md
-thinkthinking wechat convert --input article.md --theme midnight
 ```
 
 内置主题：`default`、`minimal`、`midnight`、`newspaper`、`tech-modern`。
@@ -115,10 +118,10 @@ thinkthinking wechat convert --input article.md --theme midnight
 
 ```bash
 # macOS：转换并写入剪贴板，然后去公众号 Cmd+V
-thinkthinking wechat convert --input article.md --copy
+thinkthinking wechat convert article.md --copy
 
 # 任意平台：生成预览页并打开浏览器，页面内一键复制
-thinkthinking wechat convert --input article.md --preview
+thinkthinking wechat convert article.md --preview
 ```
 
 - `--copy` 成功后 JSON 含 `"copied": true`；非 macOS 返回 `PLATFORM_NOT_SUPPORTED`，请改用 `--preview` 或 `--output`。
@@ -127,28 +130,25 @@ thinkthinking wechat convert --input article.md --preview
 
 ### wechat post
 
-把一篇文章发布为草稿。`--title`、`--author`、`--cover` 必填；正文来源 `--markdown-file` 与 `--html-file` 二选一。
+把一篇文章发布为草稿。正文文件作为位置参数传入，**按后缀自动判断类型**——`.md` / `.markdown` 自动转换，`.html` / `.htm` 直接当正文。`--title`、`--author`、`--cover` 三者必填。
 
 ```bash
 # 从 Markdown（自动转换 + 上传正文本地图片）
-thinkthinking wechat post \
-  --markdown-file article.md \
+thinkthinking wechat post article.md \
   --title "标题" --author "你的名字" --cover cover.jpg
 
-# 从已有 HTML
-thinkthinking wechat post \
-  --html-file article.html \
+# 从已有 HTML（直传，不转换）
+thinkthinking wechat post article.html \
   --title "标题" --author "你的名字" --cover cover.jpg
 ```
 
-| Flag | 必填 | 说明 |
+| 参数 | 必填 | 说明 |
 |------|:---:|------|
+| `<file>` | ✅ | 正文文件，按后缀自动判断：`.md`/`.markdown` 转换，`.html`/`.htm` 直传 |
 | `--title` | ✅ | 文章标题 |
 | `--author` | ✅ | 作者 |
 | `--cover` | ✅ | 本地封面图路径，上传为 `thumb_media_id` |
-| `--markdown-file` | 二选一 | Markdown 文件路径 |
-| `--html-file` | 二选一 | HTML 文件路径 |
-| `--theme, -t` | | 主题名（仅 markdown 路径，默认读配置） |
+| `--theme, -t` | | 主题名（仅 `.md` 正文生效，默认读配置） |
 | `--digest` | | 摘要（默认用转换生成的摘要） |
 | `--no-upload-images` | | 禁用正文本地图片自动上传 |
 

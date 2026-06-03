@@ -38,8 +38,28 @@ func NewRootCmd() *cobra.Command {
 		Short: "thinkthinking — 面向 Agent 的个人 CLI 工具箱",
 		Long: `thinkthinking 是一个面向大语言模型 Agent、自动化脚本和开发者的本地 CLI 工具箱。
 
-第一期聚焦微信公众号能力：将 Markdown 转换为微信公众号兼容 HTML，并上传草稿。
-所有命令默认输出统一 JSON envelope，便于 Agent 稳定解析。`,
+第一期聚焦微信公众号能力：将 Markdown 转换为微信公众号兼容 HTML，并发布草稿。
+
+输出契约（Agent 友好）：
+  - 所有命令输出统一 JSON envelope：{ "ok": bool, "data": ..., "error": ... }
+  - JSON 走 stdout，日志/警告走 stderr —— 只 parse stdout 即可。
+  - 加 --pretty 美化 JSON；任何子命令加 -h 查看用法与示例。
+
+常用流程：
+  thinkthinking init                              # 创建配置 ~/.thinkthinking/config.yaml
+  thinkthinking config set wechat.app_id <id>     # 写入凭证
+  thinkthinking config set wechat.app_secret <s>
+  thinkthinking wechat convert article.md         # Markdown → 公众号 HTML
+  thinkthinking wechat post article.md \          # 一步发布为草稿
+    --title "标题" --author "作者" --cover cover.jpg`,
+		Example: `  # 查看版本
+  thinkthinking --version
+
+  # 转换并写入剪贴板（macOS），到公众号 Cmd+V 直接渲染
+  thinkthinking wechat convert article.md --copy
+
+  # 发布草稿（按后缀自动判断 .md 转换 / .html 直传）
+  thinkthinking wechat post article.md --title "标题" --author "作者" --cover cover.jpg`,
 		// 我们自行用 JSON envelope 输出错误，禁用 cobra 的默认错误/用法打印，
 		// 避免非 JSON 文本污染 stdout。
 		SilenceErrors: true,
