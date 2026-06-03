@@ -34,6 +34,71 @@ make build      # 产物在 bin/thinkthinking
 
 ---
 
+## 微信公众号配置流程
+
+在使用 `wechat` 命令之前，需要先在微信公众平台获取凭证并配置到本地。
+
+### 1. 获取 AppID 与 AppSecret
+
+1. 登录 [微信公众平台](https://mp.weixin.qq.com/)，进入「设置与开发 → 基本配置」。
+2. 获取或重置 `AppID`、`AppSecret`（**AppSecret 仅展示一次，请立即保存**）。
+3. 在「基本配置」中配置 **IP 白名单**：将调用机器的公网出口 IP 加入白名单，否则 access_token 和后续接口会被拒绝。
+4. 进入「设置与开发 → 接口权限」，确认以下接口可用：
+   - 素材管理（上传/下载永久素材）
+   - 草稿箱（新增/修改/查询草稿）
+   - 发布能力（提交发布、查询发布状态）
+
+### 2. 配置本地凭证
+
+**方式一：通过 CLI 写入配置文件**
+
+```bash
+thinkthinking init
+thinkthinking config set wechat.app_id     wx_your_appid
+thinkthinking config set wechat.app_secret your_appsecret
+thinkthinking config list                   # 验证（敏感字段已脱敏）
+```
+
+**方式二：环境变量（适合 CI/CD）**
+
+```bash
+export WECHAT_APP_ID=wx_your_appid
+export WECHAT_APP_SECRET=your_appsecret
+```
+
+### 3. 验证配置
+
+```bash
+# 查看当前配置（敏感字段脱敏）
+thinkthinking config list
+
+# 查看配置文件路径与加载状态
+thinkthinking config path
+```
+
+`wechat draft create` 执行前会自动进行凭证预检，缺失时返回结构化 `WECHAT_AUTH_ERROR` 并附带配置路径与环境变量提示，无需手动验证。
+
+### 4. 发布流水线
+
+一条完整的发布路径：
+
+1. **上传素材** — `wechat draft create` 自动将正文本地图片与封面图上传到微信
+2. **创建草稿** — 同上命令，将转换后的 HTML 写入草稿箱
+3. **提交发布** — （待实现，目前需在微信公众平台网页端操作）
+4. **查询状态** — （待实现）
+5. **回填文章链接** — （待实现）
+
+> **参考链接**
+> - [微信公众平台](https://mp.weixin.qq.com/)
+> - [微信公众号开发概述](https://developers.weixin.qq.com/doc/offiaccount/Getting_Started/Overview.html)
+> - [接入指南](https://developers.weixin.qq.com/doc/offiaccount/Basic_Information/Access_Overview.html)
+> - [获取 access_token](https://developers.weixin.qq.com/doc/offiaccount/Basic_Information/Get_access_token.html)
+> - [新增草稿](https://developers.weixin.qq.com/doc/offiaccount/Draft_Box/Add_draft.html)
+> - [发布接口](https://developers.weixin.qq.com/doc/offiaccount/Publish/Publish.html)
+> - [微信公众号 API 整理文档](https://weixingongzhonghao.com.cn/zh/api/)
+
+---
+
 ## 快速开始
 
 ```bash
@@ -58,7 +123,7 @@ thinkthinking wechat draft create --markdown-file article.md --title "文章标�
 | 命令 | 说明 |
 |------|------|
 | `thinkthinking version` | 输出版本信息 |
-| `thinkthinking init [--local]` | 创建用户级（或项目级）配置 |
+| `thinkthinking init [--local] [--force]` | 创建用户级（或项目级）配置 |
 | `thinkthinking config path` | 输出配置文件路径 |
 | `thinkthinking config get <key>` | 读取配置项 |
 | `thinkthinking config set <key> <value>` | 设置配置项 |
